@@ -1,0 +1,46 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main  # branche cible
+
+jobs:
+  build_and_push:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: rania144
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: true
+        tags: rania144/arcdata-web:latest
+
+  deploy:
+    needs: build_and_push
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Deploy to server via SSH
+      uses: appleboy/ssh-action@v0.1.7
+      with:
+        host: ton_ip_serveur          # remplace par ton IP (ex: 172.29.179.4)
+        username: ton_utilisateur_ssh  # ex: rania ou root
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        port: 22                    # ou le port SSH de ton serveur si différent
+        script: |
+          docker pull rania144/arcdata-web:latest
+          docker stop arcdata-web || true
+          docker rm arcdata-web || true
+          docker run -d -p 80:80 --name arcdata-web rania144/arcdata-web:latest
+
